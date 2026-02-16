@@ -3,6 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base, str_uniq, int_pk, str_null_true
 from app.students.models import Student
 
+
 # создаем модель таблицы специальностей (majors)
 class Major(Base):
     id: Mapped[int_pk]

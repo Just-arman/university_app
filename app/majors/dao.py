@@ -2,7 +2,7 @@ from sqlalchemy import select, delete as sqlalchemy_delete
 from app.dao.base import BaseDAO
 from app.majors.models import Major
 from app.database import async_session_maker
-from enums import MajorEnum
+from enums import MajorDescriptionEnum, MajorNameEnum
 
 
 
@@ -44,17 +44,20 @@ class MajorsDAO(BaseDAO):
 
     @classmethod
     async def sync_with_enum(cls) -> dict:
-        enum_values = {e.value for e in MajorEnum}
+        enum_names = {e.value for e in MajorNameEnum}
 
         async with async_session_maker() as session:
             async with session.begin():
                 # получаем текущие значения в БД
-                result = await session.execute(select(cls.model.major_name))
-                db_values = set(result.scalars().all())
+                result = await session.execute(select(cls.model))
+                db_majors = result.scalars().all()
+
+                db_names = {m.major_name for m in db_majors}
+                enum_names = {e.value for e in MajorNameEnum}
 
                 # получаем разницу
-                to_add = enum_values - db_values
-                to_delete = db_values - enum_values
+                to_add = enum_names - db_names
+                to_delete = db_names - enum_names
 
                 # если всё уже синхронизировано
                 if not to_add and not to_delete:
@@ -63,20 +66,30 @@ class MajorsDAO(BaseDAO):
                         "added": [],
                         "deleted": [],
                     }
-
-                # удаляем лишние
+                
+                # если есть лишее, удаляем
                 if to_delete:
-                    await session.execute(
+                    stmt_delete = (
                         sqlalchemy_delete(cls.model)
                         .where(cls.model.major_name.in_(to_delete))
                     )
+                    await session.execute(stmt_delete)
 
-                # добавляем недостающие
-                new_objects = [
-                    cls.model(major_name=name)
-                    for name in to_add
-                ]
-                session.add_all(new_objects)
+                # если есть недостающее, добавляем
+                new_objects = []
+                for enum_item in MajorNameEnum:
+                    if enum_item.value in to_add:
+                        description = MajorDescriptionEnum[enum_item.name].value
+
+                        new_objects.append(
+                            cls.model(
+                                major_name=enum_item.value,
+                                major_description=description,
+                            )
+                        )
+
+                if new_objects:
+                    session.add_all(new_objects)
 
                 return {
                     "synced": False,

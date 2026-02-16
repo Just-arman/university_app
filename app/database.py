@@ -1,17 +1,10 @@
 from datetime import datetime
-import keyword
 from typing import Annotated
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, declared_attr, Mapped, mapped_column
 from app.config import get_db_url
 
-
-# DB_HOST = 'localhost'
-# DB_PORT = '5435'
-# DB_NAME = 'students_db'
-# DB_USER = 'admin'
-# DB_PASSWORD = 'postgres'
 
 DATABASE_URL = get_db_url()
 engine = create_async_engine(DATABASE_URL)

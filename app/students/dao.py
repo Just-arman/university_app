@@ -6,7 +6,7 @@ from app.dao.base import BaseDAO
 from app.majors.models import Major
 from app.students.models import Student
 from app.database import async_session_maker
-from enums import MajorEnum
+from enums import MajorNameEnum
 
 
 class StudentDAO(BaseDAO):
@@ -60,7 +60,7 @@ class StudentDAO(BaseDAO):
             async with session.begin():
                 # 1. Получаем major_id по названию специальности
                 major_enum = student_data.pop("major_name")  # достаем поле major из словаря
-                if isinstance(major_enum, MajorEnum):
+                if isinstance(major_enum, MajorNameEnum):
                     major_name = major_enum.value
                 else:
                     major_name = major_enum
@@ -74,7 +74,7 @@ class StudentDAO(BaseDAO):
                 )
                 major_id = result.scalar_one_or_none()
                 if major_id is None:
-                    raise ValueError(f"Специальностей с названием '{major_name}' не найден")
+                    raise ValueError(f"Специальностей с названием '{major_name}' не найдено")
 
                 student_data["major_id"] = major_id
 

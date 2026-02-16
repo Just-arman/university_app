@@ -101,3 +101,23 @@ async def delete_majors(
         "message": f"Удалено {len(deleted_majors)} специальностей с id в диапазоне: {range_desc}",
         "deleted_ids": deleted_majors
     }
+
+
+@router.post("/sync-enums", summary="Синхронизировать специальности в бд со значениями enums")
+async def sync_majors_with_enums():
+    try:
+        result = await MajorsDAO.sync_with_enum()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if result["deleted"]:
+        return {
+            "message": f"В базе данных обнаружена лишняя специализация: {result["deleted"]}",
+            "deleted": f"Специализация: {result["deleted"]} удалена из бд"
+        }
+    if result["added"]:
+        return {
+            "message": f"В базе данных не хватает специализации: {result["deleted"]}",
+            "added": f"Специализация: {result["added"]} добавлена"
+        }
+    return {"message": "Специализации в бд уже соответствуют значениям enums"}
