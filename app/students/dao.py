@@ -15,7 +15,7 @@ class StudentDAO(BaseDAO):
     @classmethod
     async def find_full_data(cls, student_id: int):
         async with async_session_maker() as session:
-            # Запрос для получения информации о студенте вместе с информацией о факультете
+            # Запрос для получения информации о студенте вместе с информацией о специальности
             query = select(cls.model).options(joinedload(cls.model.major)).filter_by(id=student_id)
             result = await session.execute(query)
             student_info = result.scalar_one_or_none()
@@ -58,7 +58,7 @@ class StudentDAO(BaseDAO):
     async def add_student(cls, student_data: dict):
         async with async_session_maker() as session:
             async with session.begin():
-                # 1. Получаем major_id по названию факультета
+                # 1. Получаем major_id по названию специальности
                 major_enum = student_data.pop("major_name")  # достаем поле major из словаря
                 if isinstance(major_enum, MajorEnum):
                     major_name = major_enum.value
@@ -74,16 +74,16 @@ class StudentDAO(BaseDAO):
                 )
                 major_id = result.scalar_one_or_none()
                 if major_id is None:
-                    raise ValueError(f"Факультет с названием '{major_name}' не найден")
+                    raise ValueError(f"Специальностей с названием '{major_name}' не найден")
 
                 student_data["major_id"] = major_id
 
-                # 2. Вставляем нового студента
+                # 2. Добавляем нового студента
                 stmt = insert(cls.model).values(**student_data).returning(cls.model.id, cls.model.major_id)
                 result = await session.execute(stmt)
                 new_student_id, major_id = result.fetchone()
                 
-                # 3. Увеличиваем счётчик студентов на факультете
+                # 3. Увеличиваем счётчик студентов на специальности
                 update_major = (
                     update(Major)
                     .where(Major.id == major_id)

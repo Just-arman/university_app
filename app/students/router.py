@@ -9,7 +9,6 @@ from app.students.models import Student
 from app.students.qp import QueryParamsStudent
 from app.students.schemas import SDeleteFilter, SStudentUpdate, SUpdateFilter, StudentFilterSchema, StudentSchema
 from app.database import async_session_maker
-# from utils import dell_student, upd_student
 import os
 from typing import List
 
@@ -93,82 +92,3 @@ async def delete_student(student_id: int) -> dict:
 #     if check:
 #         return {"message": "Студент успешно удален!"}
 #     raise HTTPException(status_code=400, detail="Ошибка при удалении студента")
-
-
-# Получаем путь к директории текущего скрипта
-script_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Переходим на уровень выше
-parent_dir = os.path.dirname(script_dir)
-
-# Получаем путь к JSON
-path_to_json = os.path.join(parent_dir, 'students.json')
-
-# одной строкой
-# path_to_json = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'students.json')
-
-
-# @app.get("/students")
-# def get_all_students(course: int | None = None):   
-#     students = json_to_dict_list(path_to_json)
-
-#     if course is None:
-#         return students
-
-#     # 1. Проверяем, существует ли такой курс вообще
-#     courses = {student["course"] for student in students}
-#     if course not in courses:
-#         raise HTTPException(
-#             status_code=404,
-#             detail="Указанный курс не найден"
-#         )
-
-#     # 2. Если курс существует — выполняем основной код
-#     return_list = []
-#     for student in students:
-#         if student["course"] == course:
-#             return_list.append(student)
-#     if not return_list:
-#         raise HTTPException(status_code=404, detail="На указанном курсе нет студентов")
-
-#     return return_list
-
-
-# @app.get("/students/{course}")
-# def get_all_students_by_course(request_body: RBStudent = Depends()) -> List[StudentSchema]: 
-#     students = json_to_dict_list(path_to_json)
-#     filtered_students = []
-#     for student in students:
-#         if student["course"] == request_body.course:
-#             filtered_students.append(student)
-
-#     if request_body.major:
-#         filtered_students = [student for student in filtered_students if student['major'].lower() == request_body.major.lower()]
-
-#     if request_body.enrollment_year:
-#         filtered_students = [student for student in filtered_students if student['enrollment_year'] == request_body.enrollment_year]
-
-#     return filtered_students
-
-
-# @app.get("/student")
-# def get_one_student_by_param(student_id: int) -> StudentSchema:
-#     students = json_to_dict_list(path_to_json)
-
-#     # if course is None:
-#     #     return students
-    
-#     for student in students:
-#         if student["student_id"] == student_id:
-#             return student
-#     raise HTTPException(status_code=404, detail="Студент с указанным ID не найден")
-
-
-# @app.get("/students/{student_id}")
-# def get_one_student_by_path(student_id: int) -> StudentSchema:
-#     students = json_to_dict_list(path_to_json)
-
-#     for student in students:
-#         if student["student_id"] == student_id:
-#             return student
-#     raise HTTPException(status_code=404, detail="Студент с указанным ID не найден")

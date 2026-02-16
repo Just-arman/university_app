@@ -1,164 +1,103 @@
-from sqlalchemy import delete
-from app.logger import log
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.majors.dao import MajorsDAO
-from app.majors.models import Major
 from app.majors.qp import QueryParamsMajor
-from app.majors.schemas import SMajorResponse, SMajorsAdd, SMajorsRead, SMajorsUpdDesc, SMajorsUpdName
-from app.database import async_session_maker
+from app.majors.schemas import SMajorResponse, SMajorResponseList, SMajorAdd, SMajorsRead, SMajorsUpdate
 
 
-router = APIRouter(prefix='/majors', tags=['Работа с факультетами'])
+router = APIRouter(prefix='/majors', tags=['Работа со специальностями (профилями обучения)'])
 
 
-@router.get("/", summary="Получить все факультеты")
+@router.get("/", summary="Получить все специальности")
 async def get_all_majors() -> list[SMajorsRead]:
     majors = await MajorsDAO.find_all_majors()
-    if not majors:
-        return []
     return majors
 
 
-@router.get("/get_major_by_filters/", summary="Получить факультет по любому из фильтров")
-async def get_major(major: SMajorsRead) -> SMajorsRead | dict:
-    majors = await MajorsDAO.find_all_majors(**major.model_dump())
-    log.info(f"{majors=}")
-    major_dicts = [m.to_dict() for m in majors]
-    major_dicts = majors.to_dict()
-    if majors:
-        return {"message": "Факультет успешно получен!", "majors": major_dicts}
-    else:
-        return {"message": "Ошибка при получении факультета!"}
+@router.get("", summary="Получить специальность по фильтру (фильтрам) или все")
+async def get_major_by_filters(query_params: QueryParamsMajor = Depends()) -> SMajorResponseList | list[SMajorsRead]:
+    filters = query_params.to_dict()
+    majors = await MajorsDAO.find_all_majors(**filters)
+    if not majors:
+        raise HTTPException(status_code=404, detail="Специальности с указанными фильтрами не найден")
+    if not filters:
+        return {"message": "Специальности не указаны, поэтому выдаются все специальности!", "majors": majors}
+    return majors
 
 
-@router.get("/get_major_by_id_or_name/", summary="Получить факультет по ID или названию")
-async def get_major_by_id_or_name(major_id: int | None = None, major_name: str | None = None) -> SMajorsRead:
-    if major_id is None and major_name is None:
-        raise HTTPException(status_code=400, detail="Необходимо указать major_id или major_name")
-    
-    # вариант 1
-    # filters = {}
-    # if major_id is not None:
-    #     filters["id"] = major_id
-    # if major_name is not None:
-    #     filters["major_name"] = major_name
-
-    # вариант 2
-    filters_data = {"id": major_id, "major_name": major_name}
-    filters = {}
-    for key, value in filters_data.items():
-        if value is not None:
-            filters[key] = value
-
-    major = await MajorsDAO.find_one_major(**filters)
-    log.info(f"{major=}")
-    if not major:
-        raise HTTPException(status_code=404, detail="Факультет не найден")
-    return major
-
-
-# @router.get("/get_major_by_id_or_name/", summary="Получить факультет по ID или названию")
-# async def get_major_by_id_or_name(query_params: QueryParamsMajor = Depends()) -> SMajorsRead:
-#     major = await MajorsDAO.find_one_major(**query_params.to_dict())
-#     log.info(f"{major=}")
-#     if not major:
-#         raise HTTPException(status_code=404, detail="Факультет не найден")
-#     return major
-
-
-@router.get("/get/{major_id}/", summary="Получить факультет по ID")
-async def get_major_by_id(major_id: int) -> SMajorsRead:
-    major = await MajorsDAO.find_one_major(id=major_id)
-    log.info(f"{major=}")
-    if not major:
-        raise HTTPException(status_code=404, detail="Факультет не найден")
-    return major
-
-
-@router.post("/add_major/", summary="Добавить новый факультет")
-async def register_major(major: SMajorsAdd) -> SMajorResponse:
+@router.post("", summary="Добавить новую специальность")
+async def register_major(major: SMajorAdd) -> SMajorResponse:
     new_major = await MajorsDAO.add(**major.model_dump())
-    log.info(f"{new_major=}")
     if not new_major:
         raise HTTPException(status_code=400, detail="Ошибка при добавлении")
     return {
-        "message": "Факультет успешно добавлен!",
+        "message": "Специальность успешно добавлена!",
         "major": new_major
     }
 
 
-@router.put("/update_major_name/", summary="Обновить название конкретного факультета")
-async def update_major_name(major: SMajorsUpdName) -> dict:
-    check = await MajorsDAO.update(filter_by={'major_name': major.major_name},
-                                   major_description=major.major_description)
-    if check:
-        return {"message": "Название факультета успешно обновлено!", "major": major}
-    else:
-        return {"message": "Ошибка при обновлении названия факультета!"}
+@router.put("/{major_id}", summary="Обновить специальность")
+async def update_major_by_id(major_id: int, major: SMajorsUpdate) -> SMajorResponse:
+    # update_data = {k: v for k, v in major.model_dump().items() if k != "id"}
+    update_data = major.model_dump(exclude={"id"})
+    print(f"{update_data=}")
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Не переданы данные для обновления")
+    updated_major = await MajorsDAO.update(filter_by={"id": major_id}, **update_data)
 
+    if not updated_major:
+        new_major = await MajorsDAO.add(id=major.id, **update_data)
+        if not new_major:
+            raise HTTPException(status_code=400, detail="Ошибка при создании специальности")
+        return {
+            "message": "Создана новая специальность, потому что специальность с указанным ID не была найдена",
+            "major": new_major
+        }
 
-@router.put("/update_description/", summary="Обновить описание конкретного факлуьтета")
-async def update_major_description(major: SMajorsUpdDesc) -> dict:
-    check = await MajorsDAO.update(filter_by={'major_name': major.major_name},
-                                   major_description=major.major_description)
-    if check:
-        return {"message": "Описание факультета успешно обновлено!", "major": major}
-    else:
-        return {"message": "Ошибка при обновлении описания факультета!"}
-
-
-@router.delete("/delete/{major_id}", summary="Удалить факультет по ID")
-async def delete_major(major_id: int) -> dict:
-    check = await MajorsDAO.delete(id=major_id)
-    if check:
-        return {"message": f"Факультет с ID {major_id} удален!"}
-    else:
-        return {"message": "Ошибка при удалении факультета!"}
-
-
-@router.delete("/delete_majors_range/", summary="Удалить факультеты по диапазону ID")
-async def delete_majors_range(
-    start_id: int = Query(..., ge=1, description="ID начала диапазона включительно"),
-    end_id: int | None = Query(None, ge=1, description="ID конца диапазона включительно (необязательно)")
-):
-    try:
-        deleted_count = await MajorsDAO.delete_majors_range(start_id, end_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    if deleted_count == 0:
-        range_desc = f"{start_id}-{end_id}" if end_id else f"{start_id}-∞"
-        raise HTTPException(status_code=404, detail=f"Нет факультетов с id со значениями в диапазоне {range_desc}")
-
-    range_desc = f"{start_id}-{end_id}" if end_id else f"{start_id}-∞"
-    return {"message": f"Удалено {deleted_count} факультетов с id со значениями в диапазоне {range_desc}"}
-
-
-@router.delete("/delete_majors_range_with_show_deleted/", summary="Удалить факультеты по диапазону ID")
-async def delete_majors_range_with_show_deleted(
-    start_id: int = Query(..., ge=1, description="ID начала диапазона включительно"),
-    end_id: int | None = Query(None, ge=1, description="ID конца диапазона включительно (необязательно)")
-):
-    try:
-        deleted_ids = await MajorsDAO.delete_majors_range_with_show_deleted(start_id, end_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    if not deleted_ids:
-        range_desc = f"{start_id}-∞" if end_id is None else f"{start_id}-{end_id}"
-        raise HTTPException(status_code=404, detail=f"Нет факультетов с id в диапазоне {range_desc}")
-
-    range_desc = f"{start_id}-∞" if end_id is None else f"{start_id}-{end_id}"
     return {
-        "message": f"Удалено {len(deleted_ids)} факультетов с id в диапазоне {range_desc}",
-        "deleted_ids": deleted_ids
+        "message": "Специальность успешно обновлена",
+        "major": updated_major
     }
 
 
-@router.delete("/delete/", summary="Удалить все факультеты")
-async def delete_major() -> dict:
-    check = await MajorsDAO.delete()
-    if check:
-        return {"message": f"Все факультеты удалены!"}
+@router.patch("/{major_id}", summary="Обновить специальность")
+async def update_major_by_id(major_id: int, major: SMajorsUpdate) -> SMajorResponse:
+    update_data = {k: v for k, v in major.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Не переданы данные для обновления")
+    updated_major = await MajorsDAO.update(filter_by={"id": major_id}, **update_data)
+    if not updated_major:
+        raise HTTPException(status_code=404, detail="Специальность с таким ID не найдена")
+    return {
+        "message": "Специальность успешно обновлена!",
+        "major": updated_major
+    }
+
+
+@router.delete("/{major_id}", summary="Удалить специальность по ID")
+async def delete_major(major_id: int) -> dict:
+    deleted_major = await MajorsDAO.delete(id=major_id)
+    if deleted_major:
+        return {"message": f"Специальность с ID {major_id} удалена!"}
     else:
-        return {"message": "Ошибка при удалении факультетов!"}
+        return {"message": "Ошибка при удалении специальность!"}
+
+
+@router.delete("", summary="Удалить специальности по диапазону ID или все")
+async def delete_majors(
+    start_id: int | None = Query(None, ge=1, description="ID начала диапазона включительно"),
+    end_id: int | None = Query(None, ge=1, description="ID конца диапазона включительно")
+):
+    try:
+        deleted_majors = await MajorsDAO.delete_majors_range(start_id, end_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if not deleted_majors:
+        range_desc = f"{start_id}-{end_id}" if end_id else f"{start_id}-∞"
+        raise HTTPException(status_code=404, detail=f"Нет специальностей с id в диапазоне: {range_desc}")
+
+    range_desc = f"{start_id}-{end_id}" if end_id else f"{start_id}-∞"
+    return {
+        "message": f"Удалено {len(deleted_majors)} специальностей с id в диапазоне: {range_desc}",
+        "deleted_ids": deleted_majors
+    }

@@ -14,7 +14,7 @@ class StudentSchema(BaseModel):
     email: EmailStr = Field(description="Электронная почта студента")
     address: str = Field(min_length=10, max_length=200, description="Адрес студента, не более 200 символов")
     enrollment_year: int = Field(ge=2002, le=2023, description="Год поступления должен быть не меньше 2002")
-    major_name: MajorEnum = Field(description="Название факультета") 
+    major_name: MajorEnum = Field(description="Название специальности") 
     course: int = Field(ge=1, le=5, description="Курс должен быть в диапазоне от 1 до 5")
     special_notes: str | None = Field(None, max_length=500,
                                          description="Дополнительные заметки, не более 500 символов")
@@ -49,7 +49,7 @@ class SUpdateFilter(BaseModel):
 
 class SStudentUpdate(BaseModel):
     course: int = Field(ge=1, le=5, description="Курс должен быть в диапазоне от 1 до 5")
-    major_name: MajorEnum | None = Field(description="Название факультета")
+    major_name: MajorEnum | None = Field(description="Название специальности")
 
 
 class SDeleteFilter(BaseModel):

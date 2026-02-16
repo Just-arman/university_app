@@ -1,10 +1,6 @@
-from fastapi import Depends, FastAPI, HTTPException
-from app.students.qp import QueryParamsStudent
-from app.students.schemas import SDeleteFilter, SStudentUpdate, SUpdateFilter, StudentSchema
+from fastapi import FastAPI
 from app.students.router import router as router_students
 from app.majors.router import router as router_majors
-import os
-from typing import List, Optional
 
 
 app = FastAPI()

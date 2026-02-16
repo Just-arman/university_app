@@ -8,7 +8,7 @@ from app.database import async_session_maker
 class BaseDAO:
     model = None
 
-    # Важно! Если filter_by пуст или не указан, то просто будут возвращены все студенты
+    # Если фильтры не указаны, то будут возвращены все значения
     @classmethod
     async def find_all(cls, **filter_by):
         async with async_session_maker() as session:
@@ -42,8 +42,7 @@ class BaseDAO:
                 .filter_by(**filter_by)
             )
             result = await session.execute(query)
-            return result.scalar_one_or_none()
-            # return result.scalars().one_or_none()
+            return result.scalars().one_or_none()
         
 
     @classmethod
@@ -61,36 +60,32 @@ class BaseDAO:
 
 
     @classmethod
-    async def update(cls, filter_by, **values):
+    async def update(cls, filter_by: dict, **values):
         async with async_session_maker() as session:
             async with session.begin():
-                query = (
+                stmt = (
                     sqlalchemy_update(cls.model)
                     .where(*[getattr(cls.model, k) == v for k, v in filter_by.items()])
                     .values(**values)
-                    .execution_options(synchronize_session="fetch")
+                    .returning(cls.model)
                 )
-                result = await session.execute(query)
-                try:
-                    await session.commit()
-                except SQLAlchemyError as e:
-                    await session.rollback()
-                    raise e
-                return result.rowcount
-            
+                result = await session.execute(stmt)
+                return result.scalars().one_or_none()
+
     
     @classmethod
     async def delete(cls, delete_all: bool = False, **filter_by):
         if not delete_all and not filter_by:
-            raise ValueError("Необходимо указать хотя бы один параметр для удаления.")
+            raise ValueError("Необходимо указать хотя бы один параметр для удаления")
 
         async with async_session_maker() as session:
             async with session.begin():
-                query = sqlalchemy_delete(cls.model).filter_by(**filter_by)
+                query = (
+                    sqlalchemy_delete(cls.model)
+                    .filter_by(**filter_by)
+                    .returning(cls.model)
+                )
                 result = await session.execute(query)
-                try:
-                    await session.commit()
-                except SQLAlchemyError as e:
-                    await session.rollback()
-                    raise e
-                return result.rowcount
+                deleted_objects = result.scalars().all()
+                deleted_count = len(deleted_objects)
+                return deleted_objects, deleted_count

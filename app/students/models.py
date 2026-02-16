@@ -18,7 +18,7 @@ class Student(Base):
     special_notes: Mapped[str_null_true]
     major_id: Mapped[int] = mapped_column(ForeignKey("majors.id"), nullable=False)
     
-    # Определяем отношения: один студент имеет один факультет
+    # Определяем отношения: один студент имеет одну специальность
     major: Mapped["Major"] = relationship("Major", back_populates="students")
 
     def __str__(self):
@@ -50,7 +50,7 @@ class Student(Base):
 
     @property
     def major_name(self) -> str:
-        # Возвращает название факультета для сериализации
+        # Возвращает название специальности для сериализации
         if not self.major:
             return None
         return self.major.major_name
