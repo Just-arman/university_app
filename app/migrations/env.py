@@ -12,6 +12,7 @@ sys.path.insert(0, dirname(dirname(abspath(__file__)))) # добавили от 
 from app.database import DATABASE_URL, Base
 from app.students.models import Student
 from app.majors.models import Major
+from app.majors.institutes.models import Institute
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

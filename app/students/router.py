@@ -3,11 +3,11 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from app.dao.base import BaseDAO
-from app.majors.dao import MajorsDAO
+from app.majors.dao import MajorDAO
 from app.students.dao import StudentDAO
 from app.students.models import Student
 from app.students.qp import QueryParamsStudent
-from app.students.schemas import SDeleteFilter, SStudentUpdate, SUpdateFilter, StudentFilterSchema, StudentSchema
+from app.students.schemas import SDeleteFilter, SStudentUpdate, SUpdateFilter, StudentSchema
 from app.database import async_session_maker
 import os
 from typing import List

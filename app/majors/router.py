@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.majors.dao import MajorsDAO
+from app.majors.dao import MajorDAO
 from app.majors.qp import QueryParamsMajor
 from app.majors.schemas import SMajorResponse, SMajorResponseList, SMajorAdd, SMajorsRead, SMajorsUpdate
 
@@ -9,14 +9,14 @@ router = APIRouter(prefix='/majors', tags=['Работа со специальн
 
 @router.get("/", summary="Получить все специальности")
 async def get_all_majors() -> list[SMajorsRead]:
-    majors = await MajorsDAO.find_all_majors()
+    majors = await MajorDAO.find_all_majors()
     return majors
 
 
 @router.get("", summary="Получить специальность по фильтру (фильтрам) или все")
 async def get_major_by_filters(query_params: QueryParamsMajor = Depends()) -> SMajorResponseList | list[SMajorsRead]:
     filters = query_params.to_dict()
-    majors = await MajorsDAO.find_all_majors(**filters)
+    majors = await MajorDAO.find_all_majors(**filters)
     if not majors:
         raise HTTPException(status_code=404, detail="Специальности с указанными фильтрами не найден")
     if not filters:
@@ -26,7 +26,7 @@ async def get_major_by_filters(query_params: QueryParamsMajor = Depends()) -> SM
 
 @router.post("", summary="Добавить новую специальность")
 async def register_major(major: SMajorAdd) -> SMajorResponse:
-    new_major = await MajorsDAO.add(**major.model_dump())
+    new_major = await MajorDAO.add(**major.model_dump())
     if not new_major:
         raise HTTPException(status_code=400, detail="Ошибка при добавлении")
     return {
@@ -42,10 +42,10 @@ async def update_major_by_id(major_id: int, major: SMajorsUpdate) -> SMajorRespo
     print(f"{update_data=}")
     if not update_data:
         raise HTTPException(status_code=400, detail="Не переданы данные для обновления")
-    updated_major = await MajorsDAO.update(filter_by={"id": major_id}, **update_data)
+    updated_major = await MajorDAO.update(filter_by={"id": major_id}, **update_data)
 
     if not updated_major:
-        new_major = await MajorsDAO.add(id=major.id, **update_data)
+        new_major = await MajorDAO.add(id=major.id, **update_data)
         if not new_major:
             raise HTTPException(status_code=400, detail="Ошибка при создании специальности")
         return {
@@ -64,7 +64,7 @@ async def update_major_by_id(major_id: int, major: SMajorsUpdate) -> SMajorRespo
     update_data = {k: v for k, v in major.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="Не переданы данные для обновления")
-    updated_major = await MajorsDAO.update(filter_by={"id": major_id}, **update_data)
+    updated_major = await MajorDAO.update(filter_by={"id": major_id}, **update_data)
     if not updated_major:
         raise HTTPException(status_code=404, detail="Специальность с таким ID не найдена")
     return {
@@ -75,7 +75,7 @@ async def update_major_by_id(major_id: int, major: SMajorsUpdate) -> SMajorRespo
 
 @router.delete("/{major_id}", summary="Удалить специальность по ID")
 async def delete_major(major_id: int) -> dict:
-    deleted_major = await MajorsDAO.delete(id=major_id)
+    deleted_major = await MajorDAO.delete(id=major_id)
     if deleted_major:
         return {"message": f"Специальность с ID {major_id} удалена!"}
     else:
@@ -88,7 +88,7 @@ async def delete_majors(
     end_id: int | None = Query(None, ge=1, description="ID конца диапазона включительно")
 ):
     try:
-        deleted_majors = await MajorsDAO.delete_majors_range(start_id, end_id)
+        deleted_majors = await MajorDAO.delete_majors_range(start_id, end_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -103,21 +103,35 @@ async def delete_majors(
     }
 
 
-@router.post("/sync-enums", summary="Синхронизировать специальности в бд со значениями enums")
-async def sync_majors_with_enums():
+@router.post("/sync-enums", summary="Синхронизировать значения majors и institutes в бд со значениями enums")
+async def sync_majors_and_institutes_with_enums():
     try:
-        result = await MajorsDAO.sync_with_enum()
+        result = await MajorDAO.sync_with_enums()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    if result["deleted"]:
+    category = result.get("category")
+
+    if category == "majors":
         return {
-            "message": f"В базе данных обнаружена лишняя специализация: {result["deleted"]}",
-            "deleted": f"Специализация: {result["deleted"]} удалена из бд"
+            "category": "majors",
+            "message": "Обнаружены несоответствия в специализациях. База данных обновлена.",
+            "added_majors": result["added"],
+            "deleted_majors": result["deleted"],
         }
-    if result["added"]:
+
+    if category == "institutes":
+        if result.get("synced"):
+            return {
+                "message": "Majors и institutes уже синхронизированы с enums."
+            }
+
         return {
-            "message": f"В базе данных не хватает специализации: {result["deleted"]}",
-            "added": f"Специализация: {result["added"]} добавлена"
+            "category": "institutes",
+            "message": "Обнаружены несоответствия в институтах. База данных обновлена.",
+            "added_institutes": result["added"],
+            "deleted_institutes": result["deleted"],
         }
-    return {"message": "Специализации в бд уже соответствуют значениям enums"}
+
+    raise HTTPException(status_code=500, detail="Неизвестный этап синхронизации")
+

@@ -88,4 +88,5 @@ class BaseDAO:
                 result = await session.execute(query)
                 deleted_objects = result.scalars().all()
                 deleted_count = len(deleted_objects)
-                return deleted_objects, deleted_count
+                return deleted_objects, deleted_count         
+

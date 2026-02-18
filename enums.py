@@ -1,21 +1,49 @@
 from enum import Enum
 
 
-class MajorNameEnum(str, Enum):
+class MajorEnum(str, Enum):
     economics = "Экономика"
     engineering = "Инженерия"
     law = "Право"
-    languages = "Языки"
-    informatics = "Информатика"
     psychology = "Психология"
+    informatics = "Информатика"
     medicine = "Медицина"
+    languages = "Языки"
+    media = "Реклама"
+    sport = "Спорт"
 
 
-class MajorDescriptionEnum(str, Enum):
-    economics = "Факультет экономики и финансового менеджмента"
-    engineering = "Факультет инженерии"
-    law = "Факультет права"
-    languages = "Факультет лингвистики и международных отношений"
-    psychology = "Факультет психологии и педагогических наук"
-    informatics = "Факультет информационных технологий"
-    medicine = "Факультет медицины и биологии"
+# institutes, сгруппированные по major
+institutes_enum: dict[MajorEnum, list[str]] = {
+    MajorEnum.economics: [
+        "Институт финансов и менеджмента",
+    ],
+    MajorEnum.engineering: [
+        "Физико-математический институт",
+        "Институт нефти и газа",
+    ],
+    MajorEnum.law: [
+        "Институт юстиции",
+        "Институт правоохранительной деятельности",
+        "Институт прокуратуры",
+    ],
+    MajorEnum.psychology: [
+        "Институт психологии и педагогических наук",
+    ],
+    MajorEnum.informatics: [
+        "Институт информационных технологий",
+    ],
+    MajorEnum.medicine: [
+        "Медико-биологический институт",
+    ],
+    MajorEnum.languages: [
+        "Институт лингвистики и международных отношений",
+    ],
+    MajorEnum.media: [
+        "Институт рекламы и связи",
+        "Институт маркетинга",
+    ],
+    MajorEnum.sport: [
+        "Институт физической культуры и спорта",
+    ],
+}

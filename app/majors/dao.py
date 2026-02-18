@@ -1,12 +1,15 @@
-from sqlalchemy import select, delete as sqlalchemy_delete
+from sqlalchemy import select, delete as sqlalchemy_delete, text
+from sqlalchemy.orm import selectinload
 from app.dao.base import BaseDAO
+from app.majors.institutes.models import Institute
 from app.majors.models import Major
 from app.database import async_session_maker
-from enums import MajorDescriptionEnum, MajorNameEnum
+from enums import MajorEnum, institutes_enum
+from app.database import async_session_maker
 
 
 
-class MajorsDAO(BaseDAO):
+class MajorDAO(BaseDAO):
     model = Major
 
     @classmethod
@@ -43,56 +46,85 @@ class MajorsDAO(BaseDAO):
 
 
     @classmethod
-    async def sync_with_enum(cls) -> dict:
-        enum_names = {e.value for e in MajorNameEnum}
+    async def sync_with_enums(cls) -> dict:
+        # Проверка целостности enums
+        if set(institutes_enum.keys()) != set(MajorEnum):
+            raise ValueError("institutes_enum и MajorEnum не совпадают")
 
         async with async_session_maker() as session:
             async with session.begin():
-                # получаем текущие значения в БД
+
+                # ===== 1. Получаем majors из БД =====
                 result = await session.execute(select(cls.model))
                 db_majors = result.scalars().all()
+                db_major_names = {m.major_name: m for m in db_majors}
 
-                db_names = {m.major_name for m in db_majors}
-                enum_names = {e.value for e in MajorNameEnum}
+                enum_major_names = {e.value for e in MajorEnum}
 
-                # получаем разницу
-                to_add = enum_names - db_names
-                to_delete = db_names - enum_names
+                to_add_majors = enum_major_names - set(db_major_names.keys())
+                to_delete_majors = set(db_major_names.keys()) - enum_major_names
 
-                # если всё уже синхронизировано
-                if not to_add and not to_delete:
-                    return {
-                        "synced": True,
-                        "added": [],
-                        "deleted": [],
-                    }
-                
-                # если есть лишее, удаляем
-                if to_delete:
-                    stmt_delete = (
-                        sqlalchemy_delete(cls.model)
-                        .where(cls.model.major_name.in_(to_delete))
-                    )
-                    await session.execute(stmt_delete)
+                # ===== 2. Если majors НЕ совпадают — синхронизируем и ВЫХОДИМ =====
+                if to_add_majors or to_delete_majors:
 
-                # если есть недостающее, добавляем
-                new_objects = []
-                for enum_item in MajorNameEnum:
-                    if enum_item.value in to_add:
-                        description = MajorDescriptionEnum[enum_item.name].value
+                    # удаляем лишние majors
+                    for major_name in to_delete_majors:
+                        major = db_major_names[major_name]
 
-                        new_objects.append(
-                            cls.model(
-                                major_name=enum_item.value,
-                                major_description=description,
+                        await session.execute(
+                            sqlalchemy_delete(Institute).where(
+                                Institute.major_id == major.id
                             )
                         )
+                        await session.delete(major)
 
-                if new_objects:
-                    session.add_all(new_objects)
+                    # добавляем недостающие majors
+                    for major_name in to_add_majors:
+                        session.add(cls.model(major_name=major_name))
+
+                    return {
+                        "category": "majors",
+                        "synced": False,
+                        "added": list(to_add_majors),
+                        "deleted": list(to_delete_majors),
+                    }
+
+                # ===== 3. Если majors ОК — проверяем institutes =====
+                institutes_added: list[str] = []
+                institutes_deleted: list[str] = []
+
+                for major_enum in MajorEnum:
+                    major_name = major_enum.value
+                    major = db_major_names[major_name]
+
+                    # безопасно получаем институты
+                    result_inst = await session.execute(
+                        select(Institute).where(Institute.major_id == major.id)
+                    )
+                    db_institutes = result_inst.scalars().all()
+                    db_institute_names = {i.institute_name for i in db_institutes}
+
+                    enum_institutes = set(institutes_enum.get(major_enum, []))
+
+                    # что добавить
+                    for name in enum_institutes - db_institute_names:
+                        session.add(
+                            Institute(
+                                institute_name=name,
+                                major_id=major.id,
+                            )
+                        )
+                        institutes_added.append(name)
+
+                    # что удалить
+                    for inst in db_institutes:
+                        if inst.institute_name not in enum_institutes:
+                            await session.delete(inst)
+                            institutes_deleted.append(inst.institute_name)
 
                 return {
-                    "synced": False,
-                    "added": list(to_add),
-                    "deleted": list(to_delete),
+                    "category": "institutes",
+                    "synced": not institutes_added and not institutes_deleted,
+                    "added": institutes_added,
+                    "deleted": institutes_deleted,
                 }

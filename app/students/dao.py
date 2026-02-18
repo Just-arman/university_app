@@ -6,7 +6,7 @@ from app.dao.base import BaseDAO
 from app.majors.models import Major
 from app.students.models import Student
 from app.database import async_session_maker
-from enums import MajorNameEnum
+from enums import MajorEnum
 
 
 class StudentDAO(BaseDAO):
@@ -58,13 +58,12 @@ class StudentDAO(BaseDAO):
     async def add_student(cls, student_data: dict):
         async with async_session_maker() as session:
             async with session.begin():
-                # 1. Получаем major_id по названию специальности
+                # 1. Получаем специальность по названию
                 major_enum = student_data.pop("major_name")  # достаем поле major из словаря
-                if isinstance(major_enum, MajorNameEnum):
+                if isinstance(major_enum, MajorEnum):
                     major_name = major_enum.value
                 else:
                     major_name = major_enum
-                # major_name = student_data.pop("major_name", None)
                 print(f"{major_name=}")
                 if not major_name:
                     raise HTTPException(status_code=400, detail="Поле major_name обязательно")
@@ -83,7 +82,7 @@ class StudentDAO(BaseDAO):
                 result = await session.execute(stmt)
                 new_student_id, major_id = result.fetchone()
                 
-                # 3. Увеличиваем счётчик студентов на специальности
+                # 3. Увеличиваем счётчик студентов, обучающихся по специальности
                 update_major = (
                     update(Major)
                     .where(Major.id == major_id)
