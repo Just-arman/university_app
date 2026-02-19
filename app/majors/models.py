@@ -1,16 +1,14 @@
-from sqlalchemy import ForeignKey, text
+from sqlalchemy import text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base, str_uniq, int_pk
+from app.database import Base, int_pk, str_uniq
 
 
-# создаем модель таблицы специальностей (majors)
 class Major(Base):
     id: Mapped[int_pk]
     major_name: Mapped[str_uniq]
     count_students: Mapped[int] = mapped_column(server_default=text('0'))
 
     institutes: Mapped[list["Institute"]] = relationship("Institute", back_populates="major")
-    # institutes: Mapped[list["Institute"]] = relationship("Institute", back_populates="major", lazy="selectin")
     students: Mapped[list["Student"]] = relationship("Student", back_populates="major")
 
     def __str__(self):

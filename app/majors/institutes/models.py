@@ -1,7 +1,6 @@
 from sqlalchemy import ForeignKey, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.database import Base, str_uniq, int_pk
-
+from app.database import Base, int_pk, str_uniq
 
 
 class Institute(Base):
