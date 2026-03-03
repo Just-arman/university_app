@@ -1,12 +1,11 @@
-from sqlalchemy import select, delete as sqlalchemy_delete, text
-from sqlalchemy.orm import selectinload
+from sqlalchemy import delete as sqlalchemy_delete
+from sqlalchemy import select
+
 from app.dao.base import BaseDAO
+from app.database import async_session_maker
+from app.enums import MajorEnum, institutes_enum
 from app.majors.institutes.models import Institute
 from app.majors.models import Major
-from app.database import async_session_maker
-from enums import MajorEnum, institutes_enum
-from app.database import async_session_maker
-
 
 
 class MajorDAO(BaseDAO):
@@ -47,14 +46,13 @@ class MajorDAO(BaseDAO):
 
     @classmethod
     async def sync_with_enums(cls) -> dict:
-        # Проверка целостности enums
         if set(institutes_enum.keys()) != set(MajorEnum):
             raise ValueError("institutes_enum и MajorEnum не совпадают")
 
         async with async_session_maker() as session:
             async with session.begin():
 
-                # ===== 1. Получаем majors из БД =====
+                # Получаем majors из БД
                 result = await session.execute(select(cls.model))
                 db_majors = result.scalars().all()
                 db_major_names = {m.major_name: m for m in db_majors}
@@ -64,7 +62,6 @@ class MajorDAO(BaseDAO):
                 to_add_majors = enum_major_names - set(db_major_names.keys())
                 to_delete_majors = set(db_major_names.keys()) - enum_major_names
 
-                # ===== 2. Если majors НЕ совпадают — синхронизируем и ВЫХОДИМ =====
                 if to_add_majors or to_delete_majors:
 
                     # удаляем лишние majors
@@ -89,7 +86,7 @@ class MajorDAO(BaseDAO):
                         "deleted": list(to_delete_majors),
                     }
 
-                # ===== 3. Если majors ОК — проверяем institutes =====
+                # Если majors ОК — проверяем institutes
                 institutes_added: list[str] = []
                 institutes_deleted: list[str] = []
 
@@ -106,7 +103,13 @@ class MajorDAO(BaseDAO):
 
                     enum_institutes = set(institutes_enum.get(major_enum, []))
 
-                    # что добавить
+                    # удаляем лишние institutes, если есть
+                    for inst in db_institutes:
+                        if inst.institute_name not in enum_institutes:
+                            await session.delete(inst)
+                            institutes_deleted.append(inst.institute_name)
+
+                    # добавляем недостающие institutes, если не хватает
                     for name in enum_institutes - db_institute_names:
                         session.add(
                             Institute(
@@ -115,12 +118,6 @@ class MajorDAO(BaseDAO):
                             )
                         )
                         institutes_added.append(name)
-
-                    # что удалить
-                    for inst in db_institutes:
-                        if inst.institute_name not in enum_institutes:
-                            await session.delete(inst)
-                            institutes_deleted.append(inst.institute_name)
 
                 return {
                     "category": "institutes",

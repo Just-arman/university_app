@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from enums import institutes_enum
+from app.enums import institutes_enum
 
 
 class SInstitutesRead(BaseModel):

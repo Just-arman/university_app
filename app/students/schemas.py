@@ -1,8 +1,7 @@
-from typing import Any
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, ValidationError
-from datetime import date, datetime
-from enums import MajorEnum, institutes_enum
 import re
+from datetime import date, datetime
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+from app.enums import MajorEnum
 
 
 class StudentSchema(BaseModel):
@@ -21,55 +20,25 @@ class StudentSchema(BaseModel):
                                          
     model_config = ConfigDict(from_attributes=True)
 
-    # @field_validator("institute_name")
-    # def check_institute(cls, v, values):
-    #     major = values.get("major")
-    #     if major and v not in institutes_enum[major]:
-    #         raise ValueError(f"{v} не является допустимым институтом для {major.value}")
-    #     return v
+    @model_validator(mode="before")
+    def check_names_present(cls, values):
+        if not values.get("major_name"):
+            raise ValueError("major_name обязателен")
+        if not values.get("institute_name"):
+            raise ValueError("institute_name обязателен")
+        return values
+    
 
-    # @field_validator("phone_number")
-    # @classmethod
-    # def validate_phone_number(cls, value: str) -> str:
-    #     if not re.match(r'^\+\d{1,15}$', value):
-    #         raise ValueError('Номер телефона должен начинаться с "+" и содержать от 1 до 15 цифр')
-    #     return value
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, value: str) -> str:
+        if not re.match(r'^\+\d{1,15}$', value):
+            raise ValueError('Номер телефона должен начинаться с "+" и содержать от 1 до 15 цифр')
+        return value
 
-    # @field_validator("date_of_birth")
-    # @classmethod
-    # def validate_date_of_birth(cls, value: date):
-    #     if value and value >= datetime.now().date():
-    #         raise ValueError('Дата рождения должна быть в прошлом')
-    #     return value
-
-
-class SStudentFilter(BaseModel):
-    student_id: int | None = None
-    major_name: str | None = None
-    institute_name: int | None = None
-    course: int | None = None
-    enrollment_year: int | None = None
-
-
-class SUpdateFilter(BaseModel):
-    id: int
-
-
-class SStudentUpdate(BaseModel):
-    course: int = Field(ge=1, le=5, description="Курс должен быть в диапазоне от 1 до 5")
-    major_name: MajorEnum | None = Field(description="Название специальности")
-    institute_name: str | None = Field(description="Название института")
-
-    model_config = ConfigDict(from_attributes=True)
-
-    @field_validator("institute_name")
-    def check_institute(cls, v, values):
-        major = values.get("major")
-        if major and v not in institutes_enum[major]:
-            raise ValueError(f"{v} не является допустимым институтом для {major.value}")
-        return v        
-
-
-class SDeleteFilter(BaseModel):
-    key: str
-    value: Any
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_date_of_birth(cls, value: date):
+        if value and value >= datetime.now().date():
+            raise ValueError('Дата рождения должна быть в прошлом')
+        return value

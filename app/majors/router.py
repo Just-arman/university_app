@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.majors.dao import MajorDAO
 from app.majors.qp import QueryParamsMajor
-from app.majors.schemas import SMajorResponse, SMajorResponseList, SMajorAdd, SMajorsRead, SMajorsUpdate
+from app.majors.schemas import SMajorAdd, SMajorResponse, SMajorResponseList, SMajorsRead, SMajorsUpdate
 
 
 router = APIRouter(prefix='/majors', tags=['Работа со специальностями (профилями обучения)'])
@@ -133,5 +133,5 @@ async def sync_majors_and_institutes_with_enums():
             "deleted_institutes": result["deleted"],
         }
 
-    raise HTTPException(status_code=500, detail="Неизвестный этап синхронизации")
+    raise HTTPException(status_code=500, detail="Ошибка при синхронизации")
 

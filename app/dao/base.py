@@ -1,7 +1,8 @@
+from sqlalchemy import delete as sqlalchemy_delete
+from sqlalchemy import update as sqlalchemy_update
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import update as sqlalchemy_update, delete as sqlalchemy_delete
+from sqlalchemy.orm import selectinload
 from app.database import async_session_maker
 
 

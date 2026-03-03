@@ -1,12 +1,12 @@
+from datetime import date
 from sqlalchemy import ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import date
-from app.database import Base, str_uniq, int_pk, str_null_true
+
+from app.database import Base, int_pk, str_null_true, str_uniq
 from app.majors.institutes.models import Institute
 from app.majors.models import Major
 
 
-# создаем модель таблицы студентов
 class Student(Base):
     id: Mapped[int_pk]
     first_name: Mapped[str]
@@ -21,7 +21,7 @@ class Student(Base):
     major_id: Mapped[int] = mapped_column(ForeignKey("majors.id"), nullable=False)
     institute_id: Mapped[int] = mapped_column(ForeignKey("institutes.id"), nullable=False)
     
-    # Определяем отношения: один студент имеет одну специальность
+    # Определяем отношения: один студент имеет одну специальность и один студент имеет один институт
     major: Mapped["Major"] = relationship("Major", back_populates="students")
     institute: Mapped["Institute"] = relationship("Institute", back_populates="students")
 
@@ -48,10 +48,6 @@ class Student(Base):
             "major_id": self.major_id,
             "institute_id": self.institute_id
         }
-
-    # @property
-    # def major_enum(self) -> str:
-    #     return self.major.major_name
 
     @property
     def major_name(self) -> str:

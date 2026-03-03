@@ -1,0 +1,2 @@
+[tool.autoflake]
+imports = ["sqlalchemy", "app"]
