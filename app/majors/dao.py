@@ -62,39 +62,32 @@ class MajorDAO(BaseDAO):
                 to_add_majors = enum_major_names - set(db_major_names.keys())
                 to_delete_majors = set(db_major_names.keys()) - enum_major_names
 
-                if to_add_majors or to_delete_majors:
+                # удаляем лишние majors
+                for major_name in to_delete_majors:
+                    major = db_major_names[major_name]
 
-                    # удаляем лишние majors
-                    for major_name in to_delete_majors:
-                        major = db_major_names[major_name]
+                    await session.execute(
+                        sqlalchemy_delete(Institute).where(Institute.major_id == major.id)
+                    )
+                    await session.delete(major)
 
-                        await session.execute(
-                            sqlalchemy_delete(Institute).where(
-                                Institute.major_id == major.id
-                            )
-                        )
-                        await session.delete(major)
+                # добавляем недостающие majors и сразу кладём в db_major_names
+                for major_name in to_add_majors:
+                    new_major = cls.model(major_name=major_name)
+                    session.add(new_major)
+                    db_major_names[major_name] = new_major
 
-                    # добавляем недостающие majors
-                    for major_name in to_add_majors:
-                        session.add(cls.model(major_name=major_name))
+                # flush чтобы новые majors получили id до работы с institutes
+                await session.flush()
 
-                    return {
-                        "category": "majors",
-                        "synced": False,
-                        "added": list(to_add_majors),
-                        "deleted": list(to_delete_majors),
-                    }
-
-                # Если majors ОК — проверяем institutes
-                institutes_added: list[str] = []
-                institutes_deleted: list[str] = []
+                # Синхронизируем institutes
+                to_add_institutes: list[str] = []
+                to_delete_institutes: list[str] = []
 
                 for major_enum in MajorEnum:
                     major_name = major_enum.value
                     major = db_major_names[major_name]
 
-                    # безопасно получаем институты
                     result_inst = await session.execute(
                         select(Institute).where(Institute.major_id == major.id)
                     )
@@ -103,25 +96,23 @@ class MajorDAO(BaseDAO):
 
                     enum_institutes = set(institutes_enum.get(major_enum, []))
 
-                    # удаляем лишние institutes, если есть
                     for inst in db_institutes:
                         if inst.institute_name not in enum_institutes:
                             await session.delete(inst)
-                            institutes_deleted.append(inst.institute_name)
+                            to_delete_institutes.append(inst.institute_name)
 
-                    # добавляем недостающие institutes, если не хватает
                     for name in enum_institutes - db_institute_names:
-                        session.add(
-                            Institute(
-                                institute_name=name,
-                                major_id=major.id,
-                            )
-                        )
-                        institutes_added.append(name)
+                        session.add(Institute(institute_name=name, major_id=major.id))
+                        to_add_institutes.append(name)
 
                 return {
-                    "category": "institutes",
-                    "synced": not institutes_added and not institutes_deleted,
-                    "added": institutes_added,
-                    "deleted": institutes_deleted,
+                    "majors": {
+                        "added": list(to_add_majors),
+                        "deleted": list(to_delete_majors),
+                    },
+                    "institutes": {
+                        "added": to_add_institutes,
+                        "deleted": to_delete_institutes,
+                    },
+                    "synced": not any([to_add_majors, to_delete_majors, to_add_institutes, to_delete_institutes]),
                 }

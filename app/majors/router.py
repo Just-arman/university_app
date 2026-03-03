@@ -103,35 +103,19 @@ async def delete_majors(
     }
 
 
-@router.post("/sync-enums", summary="Синхронизировать значения majors и institutes в бд со значениями enums")
+@router.post("/sync-enums")
 async def sync_majors_and_institutes_with_enums():
     try:
         result = await MajorDAO.sync_with_enums()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    category = result.get("category")
+    if result["synced"]:
+        return {"message": "Majors и institutes уже синхронизированы с enums."}
 
-    if category == "majors":
-        return {
-            "category": "majors",
-            "message": "Обнаружены несоответствия в специализациях. База данных обновлена.",
-            "added_majors": result["added"],
-            "deleted_majors": result["deleted"],
-        }
-
-    if category == "institutes":
-        if result.get("synced"):
-            return {
-                "message": "Majors и institutes уже синхронизированы с enums."
-            }
-
-        return {
-            "category": "institutes",
-            "message": "Обнаружены несоответствия в институтах. База данных обновлена.",
-            "added_institutes": result["added"],
-            "deleted_institutes": result["deleted"],
-        }
-
-    raise HTTPException(status_code=500, detail="Ошибка при синхронизации")
+    return {
+        "message": "Синхронизация выполнена.",
+        "majors": result["majors"],
+        "institutes": result["institutes"],
+    }
 
