@@ -2,24 +2,24 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.students.dao import StudentDAO
 from app.students.qp import QueryParamsStudent
-from app.students.schemas import StudentSchema
+from app.students.schemas import ReadStudentSchema, StudentSchema
 
 
 router = APIRouter(prefix='/students', tags=['Работа со студентами'])
 
 
 @router.get("/", summary="Получить всех студентов")
-async def get_all_students() -> list[StudentSchema]:
+async def get_all_students() -> list[ReadStudentSchema]:
     return await StudentDAO.find_all()
 
 
 @router.get("/get_students_by_filters", summary="Получить студентов по фильтру (фильтрам)")
-async def get_all_students_by_filters(query_params: QueryParamsStudent = Depends()) -> list[StudentSchema]:
+async def get_all_students_by_filters(query_params: QueryParamsStudent = Depends()) -> list[ReadStudentSchema]:
     return await StudentDAO.find_all(**query_params.to_dict())
 
 
 @router.get("/{id}", summary="Получить одного студента по id")
-async def get_student_by_id(id: int) -> StudentSchema | dict:
+async def get_student_by_id(id: int) -> ReadStudentSchema | dict:
     result = await StudentDAO.find_one_or_none(id=id)
     if result is None:
         raise HTTPException(status_code=404, detail=f"Студент с ID {id} не найден")
@@ -36,7 +36,7 @@ async def add_student_handler(student_data: StudentSchema):
 
 
 @router.put("/update_student", summary="Обновить информацию о студенте")
-async def update_student_handler(student: StudentSchema):
+async def update_student_handler(student: ReadStudentSchema):
     check = await StudentDAO.update(student)
     if check:
         return {"message": "Информация о студенте успешно обновлена!"}

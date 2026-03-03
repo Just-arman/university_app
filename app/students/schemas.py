@@ -5,7 +5,6 @@ from app.enums import MajorEnum
 
 
 class StudentSchema(BaseModel):
-    id: int
     first_name: str = Field(min_length=1, max_length=50, description="Имя студента, от 1 до 50 символов")
     last_name: str = Field(min_length=1, max_length=50, description="Фамилия студента, от 1 до 50 символов")
     date_of_birth: date = Field(description="Дата рождения студента в формате ГГГГ-ММ-ДД")
@@ -19,6 +18,7 @@ class StudentSchema(BaseModel):
     institute_name: str = Field(description="Название института")
                                          
     model_config = ConfigDict(from_attributes=True)
+    
 
     @model_validator(mode="before")
     def check_names_present(cls, values):
@@ -42,3 +42,9 @@ class StudentSchema(BaseModel):
         if value and value >= datetime.now().date():
             raise ValueError('Дата рождения должна быть в прошлом')
         return value
+
+
+class ReadStudentSchema(BaseModel):
+    id: int
+    student_data: StudentSchema
+
